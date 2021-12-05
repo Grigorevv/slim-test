@@ -1,4 +1,18 @@
 {
+    "name": "viktor/hexlet-slim-example",
+    "description": "testing slim",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Viktor\\HexletSlimExample\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Grigorev Viktor",
+            "email": "7184243@gmail.com"
+        }
+    ],
     "require": {
         "slim/slim": "^4.9",
         "slim/psr7": "^1.5",
