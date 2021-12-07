@@ -29,7 +29,7 @@ $app->get('/users', function ($request, $response) use ($users) {
     $res = array_filter($users, fn($user) =>  str_contains($user, $term));
     $params = ['users' => $res];
     }   else {
-            $params = ['users' => $users];
+            $params = ['users' => $users, 'term' => $term];
     }
     return $this->get('renderer')->render($response, 'users/index.phtml', $params);
 
