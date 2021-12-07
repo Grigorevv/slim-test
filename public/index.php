@@ -10,21 +10,29 @@ $app = AppFactory::create();
 
 $container = new Container();
 $container->set('renderer', function () {
-    // Параметром передается базовая директория, в которой будут храниться шаблоны
     return new \Slim\Views\PhpRenderer(__DIR__ . '/../templates');
 });
 $app = AppFactory::createFromContainer($container);
 $app->addErrorMiddleware(true, true, true);
 
-
+$users = ['mike', 'mishel', 'adel', 'keks', 'kamila'];
 
 $app->get('/', function ($request, $response) {
     $response->getBody()->write('Welcome to Slim!');
     return $response;
 });
 
-$app->get('/users', function ($request, $response) {
-    return $response->write('GET /users');
+$app->get('/users', function ($request, $response) use ($users) {
+    $term = $request->getQueryParam('term');
+    
+    if ($term !== null) {
+    $res = array_filter($users, fn($user) =>  str_contains($user, $term));
+    $params = ['users' => $res];
+    }   else {
+            $params = ['users' => $users];
+    }
+    return $this->get('renderer')->render($response, 'users/index.phtml', $params);
+
 });
 
 $app->post('/users', function ($request, $response) {
