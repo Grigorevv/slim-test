@@ -6,14 +6,26 @@ require __DIR__ . '/../vendor/autoload.php';
 use Slim\Factory\AppFactory;
 use DI\Container;
 
+session_start();
 $app = AppFactory::create();
 
 $container = new Container();
 $container->set('renderer', function () {
     return new \Slim\Views\PhpRenderer(__DIR__ . '/../templates');
 });
-$app = AppFactory::createFromContainer($container);
+
+$container->set('flash', function () {
+    return new \Slim\Flash\Messages();
+});
+
+//$app = AppFactory::createFromContainer($container);
+//$app->addErrorMiddleware(true, true, true);
+
+AppFactory::setContainer($container);
+$app = AppFactory::create();
+
 $app->addErrorMiddleware(true, true, true);
+
 
 $dataBase = file_get_contents('./data.json');
 $users = json_decode($dataBase, true);
@@ -24,6 +36,7 @@ $app->get('/', function ($request, $response) {
 });
 
 $app->get('/users/new', function ($request, $response) {
+    $this->get('flash')->addMessage('success', 'User added!!!!!!!!!');
     $params = [
         'user' => ['name' => '', 'email' => '', 'id' => '']];
     return $this->get('renderer')->render($response, "users/new.phtml", $params);
@@ -32,27 +45,17 @@ $app->get('/users/new', function ($request, $response) {
 
 $app->get('/users', function ($request, $response) use ($users) {
     $term = $request->getQueryParam('term');
-
+    $messages = $this->get('flash')->getMessages();
+    
     if ($term !== null) {
-    $res = array_filter($users, fn($user) =>  str_contains($user, $term));
+    $res = array_filter($users, fn($user) =>  str_contains($user['name'], $term));
 
-    $params = ['users' => $res];
+    $params = ['flash' => $messages, 'users' => $res];
     }   else {
-            $params = ['users' => $users, 'term' => $term];
+            $params = ['flash' => $messages, 'users' => $users, 'term' => $term];
     }
     return $this->get('renderer')->render($response, 'users/show.phtml', $params);
 });
-
-
-/*
-$app->get('/users/{id}', function ($request, $response, $args) {
-    $params = ['id' => $args['id'], 'nickname' => 'user-' . $args['id']];
-    // Указанный путь считается относительно базовой директории для шаблонов, заданной на этапе конфигурации
-    // $this доступен внутри анонимной функции благодаря https://php.net/manual/ru/closure.bindto.php
-    // $this в Slim это контейнер зависимостей
-    return $this->get('renderer')->render($response, 'users/show.phtml', $params);
-});*/
-
 
 
 $app->post('/users', function ($request, $response) {
