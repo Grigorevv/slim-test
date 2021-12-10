@@ -1,0 +1,21 @@
+
+<div> <?= $flash['success'][0] ?> </div>
+
+<table>
+  <?php foreach ($users as $user): ?>
+    <tr>
+      <td>
+          <?= $user['id'] ?>
+      </td>
+      <td>
+          <a href="/users/<?= htmlspecialchars($user['id']) ?>"><?= $user['name'] ?></a>
+      </td>
+    </tr>
+  <?php endforeach ?>
+</table>
+
+
+<form action="/users" method="get">
+  <input type="search" name="term" value="<?= htmlspecialchars($term) ?>" />
+  <input type="submit" value="Search" />
+</form>

@@ -54,8 +54,8 @@ $app->get('/users', function ($request, $response) use ($users) {
     }   else {
             $params = ['flash' => $messages, 'users' => $users, 'term' => $term];
     }
-    return $this->get('renderer')->render($response, 'users/show.phtml', $params);
-});
+    return $this->get('renderer')->render($response, 'users/index.phtml', $params);
+})->setName('users');
 
 
 $app->post('/users', function ($request, $response) {
@@ -76,12 +76,12 @@ $app->get('/users/{id}', function ($request, $response, array $args) {
     $data = file_get_contents('./data.json');
     $data2 = json_decode($data, true);
 
-    $result = array_filter($data2, fn($user) => $user['id'] === $id);
+    $result = array_values(array_filter($data2, fn($user) => $user['id'] === $id));
     if (empty($result)) {
         return $response->withStatus(404);
     }
-    $params = ['users' => $result];
+    $params = ['user' => $result];
     return $this->get('renderer')->render($response, 'users/show.phtml', $params);
-});
+})->setName('users');
 
 $app->run();
