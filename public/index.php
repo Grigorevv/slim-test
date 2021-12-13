@@ -1,10 +1,11 @@
 <?php
 
-// Подключение автозагрузки через composer
 require __DIR__ . '/../vendor/autoload.php';
 
 use Slim\Factory\AppFactory;
 use DI\Container;
+use Slim\Middleware\MethodOverrideMiddleware;
+
 
 class Validator
 {
@@ -27,6 +28,8 @@ class Validator
 session_start();
 $app = AppFactory::create();
 
+$app->add(MethodOverrideMiddleware::class);
+
 $container = new Container();
 $container->set('renderer', function () {
     return new \Slim\Views\PhpRenderer(__DIR__ . '/../templates');
@@ -36,32 +39,26 @@ $container->set('flash', function () {
     return new \Slim\Flash\Messages();
 });
 
-//$app = AppFactory::createFromContainer($container);
-//$app->addErrorMiddleware(true, true, true);
-
 AppFactory::setContainer($container);
 $app = AppFactory::create();
 
 $app->addErrorMiddleware(true, true, true);
 $router = $app->getRouteCollector()->getRouteParser();
 
-
 $dataBase = file_get_contents('./data.json');
 $users = json_decode($dataBase, true);
-
+///////////////////////////////////////////////////////////////////////////////////
 $app->get('/', function ($request, $response) {
     $response->getBody()->write('Welcome to Slim!');
     return $response;
 });
-
+////////////////////////////////////////////////////////////////////////////////////
 $app->get('/users/new', function ($request, $response) {
-   //   $this->get('flash')->addMessage('success', 'School has been created');
     $params = [
         'user' => ['name' => '', 'email' => '', 'id' => '']];
     return $this->get('renderer')->render($response, "users/new.phtml", $params);
 });
-
-
+/////////////////////////////////////////////////////////////////////////////////////
 $app->get('/users', function ($request, $response) use ($users) {
     $term = $request->getQueryParam('term');
     $messages = $this->get('flash')->getMessages();
@@ -75,8 +72,35 @@ $app->get('/users', function ($request, $response) use ($users) {
     }
     return $this->get('renderer')->render($response, 'users/index.phtml', $params);
 })->setName('users');
+//////////////////////////////////////////////////////////////////////////////////////////
+$app->patch('/users/{id}', function ($request, $response, array $args) use ($router)  {
+    print_r('****************');
+    $id = $args['id'];
+    $dataBase = json_decode(file_get_contents('./data.json'), true);
+    $user = array_filter($dataBase, fn($user) => $user['id'] === $id);
+    $data = $request->getParsedBodyParam('user');
+    $validator = new Validator();
+    $errors = $validator->validate($data);
+    
+    if (count($errors) === 0) {
+        $user['name'] = $data['name'];
+        $this->get('flash')->addMessage('success', 'User has been updated');
 
+        $jsonData = json_encode($user);
+        file_put_contents('./data.json', $jsonData); 
+        $url = $router->urlFor('editUser', ['id' => $user['id']]);
+        return $response->withRedirect($url);
+    }
 
+    $params = [
+        'user' => $user,
+        'errors' => $errors
+    ];
+
+    $response = $response->withStatus(422);
+    return $this->get('renderer')->render($response, 'users/edit.phtml', $params);
+});
+////////////////////////////////////////////////////////////////////////////////////////
 $app->post('/users', function ($request, $response) use ($router){
     $user = $request->getParsedBodyParam('user');
     $validator = new Validator();
@@ -101,8 +125,9 @@ $app->post('/users', function ($request, $response) use ($router){
     return $this->get('renderer')->render($response, 'users/new.phtml', $params);
 });
 
-
+////////////////////////////////////////////////////////////////////////////////////////
 $app->get('/users/{id}', function ($request, $response, array $args) {
+    print_r('////////////////////');
     $id = $args['id'];
     $data = file_get_contents('./data.json');
     $data2 = json_decode($data, true);
@@ -113,7 +138,21 @@ $app->get('/users/{id}', function ($request, $response, array $args) {
     }
     $params = ['user' => $result];
     return $this->get('renderer')->render($response, 'users/show.phtml', $params);
-})->setName('users');
+});
+//////////////////////////////////////////////////////////////////////////////////////
+$app->get('/users/{id}/edit', function ($request, $response, array $args) {
+    $id = $args['id'];
+    $dataBase = json_decode(file_get_contents('./data.json'), true);
+    $user = array_values(array_filter($dataBase, fn($user) => $user['id'] === $id));
+    $params = [
+        'user' => $user[0],
+        'errors' => []
+    ];
+
+    return $this->get('renderer')->render($response, 'users/edit.phtml', $params);
+})->setName('editUser');
+
+
 
 $app->run();
 
