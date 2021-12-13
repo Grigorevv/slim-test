@@ -6,6 +6,24 @@ require __DIR__ . '/../vendor/autoload.php';
 use Slim\Factory\AppFactory;
 use DI\Container;
 
+class Validator
+{
+    public function validate(array $user)
+    {
+        $errors = [];
+        if (empty($user['name'])) {
+            $errors['name'] = "Can't be blank";
+         }
+        if (empty($user['email'])) {
+            $errors['email'] = "Can't be blank";
+         }
+        if (empty($user['id'])) {
+            $errors['id'] = "Can't be blank";
+         }
+     return $errors;
+    }
+}
+
 session_start();
 $app = AppFactory::create();
 
@@ -25,6 +43,7 @@ AppFactory::setContainer($container);
 $app = AppFactory::create();
 
 $app->addErrorMiddleware(true, true, true);
+$router = $app->getRouteCollector()->getRouteParser();
 
 
 $dataBase = file_get_contents('./data.json');
@@ -36,7 +55,7 @@ $app->get('/', function ($request, $response) {
 });
 
 $app->get('/users/new', function ($request, $response) {
-    $this->get('flash')->addMessage('success', 'User added!!!!!!!!!');
+   //   $this->get('flash')->addMessage('success', 'School has been created');
     $params = [
         'user' => ['name' => '', 'email' => '', 'id' => '']];
     return $this->get('renderer')->render($response, "users/new.phtml", $params);
@@ -58,16 +77,28 @@ $app->get('/users', function ($request, $response) use ($users) {
 })->setName('users');
 
 
-$app->post('/users', function ($request, $response) {
+$app->post('/users', function ($request, $response) use ($router){
     $user = $request->getParsedBodyParam('user');
+    $validator = new Validator();
+    $errors = $validator->validate($user);
 
-    $dataBase = file_get_contents('./data.json');
-    $temp = json_decode($dataBase, true);
-    if ($temp !== null) $tempArray = $temp;
-    $tempArray[] = $user;
-    $jsonData = json_encode($tempArray);
-    file_put_contents('./data.json', $jsonData); 
-    return $response->withRedirect('/users');
+    if (count($errors) === 0) {
+        $dataBase = file_get_contents('./data.json');
+        $temp = json_decode($dataBase, true);
+        if ($temp !== null) $tempArray = $temp;
+        $tempArray[] = $user;
+        $jsonData = json_encode($tempArray);
+        file_put_contents('./data.json', $jsonData); 
+        $this->get('flash')->addMessage('success', 'User has been created');
+        $url = $router->urlFor('users');
+        return $response->withRedirect($url);
+    }
+    $params = [
+        'user' => $user,
+        'errors' => $errors
+    ];
+    $response = $response->withStatus(422);
+    return $this->get('renderer')->render($response, 'users/new.phtml', $params);
 });
 
 
@@ -85,3 +116,7 @@ $app->get('/users/{id}', function ($request, $response, array $args) {
 })->setName('users');
 
 $app->run();
+
+
+
+

@@ -4,18 +4,27 @@
     name
       <input type="text" name="user[name]">
     </label>
+    <?php if (isset($errors['name'])): ?>
+      <div><?= $errors['name'] ?></div>
+    <?php endif ?>
   </div>
   <div>
     <label>
     email
       <input type="email" required name="user[email]">
     </label>
+    <?php if (isset($errors['email'])): ?>
+      <div><?= $errors['email'] ?></div>
+    <?php endif ?>
     </div>
   <div>
     <label>
     id
     <input type="id" required name="user[id]">
     </label>
+    <?php if (isset($errors['id'])): ?>
+      <div><?= $errors['id'] ?></div>
+    <?php endif ?>
     </div>
     <input type="submit" value="Sign Up">
 </form>
