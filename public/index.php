@@ -1,11 +1,10 @@
 <?php
 
-require __DIR__ . '/../vendor/autoload.php';
-
 use Slim\Factory\AppFactory;
 use DI\Container;
 use Slim\Middleware\MethodOverrideMiddleware;
 
+require __DIR__ . '/../vendor/autoload.php';
 
 class Validator
 {
@@ -18,144 +17,127 @@ class Validator
         if (empty($user['email'])) {
             $errors['email'] = "Can't be blank";
          }
-        if (empty($user['id'])) {
-            $errors['id'] = "Can't be blank";
-         }
      return $errors;
     }
 }
 
 session_start();
-$app = AppFactory::create();
-
-$app->add(MethodOverrideMiddleware::class);
 
 $container = new Container();
 $container->set('renderer', function () {
-    return new \Slim\Views\PhpRenderer(__DIR__ . '/../templates');
+    return new Slim\Views\PhpRenderer(__DIR__ . '/../templates');
 });
-
 $container->set('flash', function () {
-    return new \Slim\Flash\Messages();
+    return new Slim\Flash\Messages();
 });
 
-AppFactory::setContainer($container);
-$app = AppFactory::create();
-
+$app = AppFactory::createFromContainer($container);
+$app->add(MethodOverrideMiddleware::class);
 $app->addErrorMiddleware(true, true, true);
+
 $router = $app->getRouteCollector()->getRouteParser();
 
-$dataBase = file_get_contents('./data.json');
-$users = json_decode($dataBase, true);
-///////////////////////////////////////////////////////////////////////////////////
-$app->get('/', function ($request, $response) {
-    $response->getBody()->write('Welcome to Slim!');
-    return $response;
-});
-////////////////////////////////////////////////////////////////////////////////////
-$app->get('/users/new', function ($request, $response) {
-    $params = [
-        'user' => ['name' => '', 'email' => '', 'id' => '']];
-    return $this->get('renderer')->render($response, "users/new.phtml", $params);
-});
-/////////////////////////////////////////////////////////////////////////////////////
-$app->get('/users', function ($request, $response) use ($users) {
-    $term = $request->getQueryParam('term');
-    $messages = $this->get('flash')->getMessages();
-    
-    if ($term !== null) {
-    $res = array_filter($users, fn($user) =>  str_contains($user['name'], $term));
+function getUser($users, $id) {
+   return array_values(array_filter($users, fn($user) => $user['id'] == $id))[0];
+}
 
-    $params = ['flash' => $messages, 'users' => $res];
-    }   else {
-            $params = ['flash' => $messages, 'users' => $users, 'term' => $term];
-    }
+//1
+$app->get('/', function ($request, $response) {
+    return $this->get('renderer')->render($response, 'index.phtml');
+});
+
+//2
+$app->get('/users', function ($request, $response) {
+  $flash = $this->get('flash')->getMessages();
+  $users = json_decode($request->getCookieParam('users', json_encode([])), true);
+
+    $params = [
+        'flash' => $flash,
+        'users' => $users
+    ];
     return $this->get('renderer')->render($response, 'users/index.phtml', $params);
 })->setName('users');
-//////////////////////////////////////////////////////////////////////////////////////////
-$app->patch('/users/{id}', function ($request, $response, array $args) use ($router)  {
-    print_r('****************');
-    $id = $args['id'];
-    $dataBase = json_decode(file_get_contents('./data.json'), true);
-    $user = array_filter($dataBase, fn($user) => $user['id'] === $id);
-    $data = $request->getParsedBodyParam('user');
-    $validator = new Validator();
-    $errors = $validator->validate($data);
-    
-    if (count($errors) === 0) {
-        $user['name'] = $data['name'];
-        $this->get('flash')->addMessage('success', 'User has been updated');
 
-        $jsonData = json_encode($user);
-        file_put_contents('./data.json', $jsonData); 
-        $url = $router->urlFor('editUser', ['id' => $user['id']]);
-        return $response->withRedirect($url);
-    }
-
+//3
+$app->get('/users/new', function ($request, $response) {
     $params = [
-        'user' => $user,
-        'errors' => $errors
+        'userData' => [],
+        'errors' => []
     ];
-
-    $response = $response->withStatus(422);
-    return $this->get('renderer')->render($response, 'users/edit.phtml', $params);
-});
-////////////////////////////////////////////////////////////////////////////////////////
-$app->post('/users', function ($request, $response) use ($router){
-    $user = $request->getParsedBodyParam('user');
-    $validator = new Validator();
-    $errors = $validator->validate($user);
-
-    if (count($errors) === 0) {
-        $dataBase = file_get_contents('./data.json');
-        $temp = json_decode($dataBase, true);
-        if ($temp !== null) $tempArray = $temp;
-        $tempArray[] = $user;
-        $jsonData = json_encode($tempArray);
-        file_put_contents('./data.json', $jsonData); 
-        $this->get('flash')->addMessage('success', 'User has been created');
-        $url = $router->urlFor('users');
-        return $response->withRedirect($url);
-    }
-    $params = [
-        'user' => $user,
-        'errors' => $errors
-    ];
-    $response = $response->withStatus(422);
     return $this->get('renderer')->render($response, 'users/new.phtml', $params);
 });
 
-////////////////////////////////////////////////////////////////////////////////////////
-$app->get('/users/{id}', function ($request, $response, array $args) {
-    print_r('////////////////////');
-    $id = $args['id'];
-    $data = file_get_contents('./data.json');
-    $data2 = json_decode($data, true);
-
-    $result = array_values(array_filter($data2, fn($user) => $user['id'] === $id));
-    if (empty($result)) {
-        return $response->withStatus(404);
+//4
+$app->post('/users', function ($request, $response) use ($router) {
+    $userData = $request->getParsedBodyParam('user'); 
+    $users = json_decode($request->getCookieParam('users', json_encode([])), true);
+    $validator = new Validator();
+    $errors = $validator->validate($userData);
+    if (count($errors) === 0) {
+        $this->get('flash')->addMessage('success', 'User has been created');
+        $userId = mt_rand(0, 999999);
+        $userData['id'] = $userId;
+        $users[$userId] = $userData;
+        $encodedUsers = json_encode($users);
+        return $response->withHeader('Set-Cookie', "users={$encodedUsers}")->withRedirect($router->urlFor('users'));
     }
-    $params = ['user' => $result];
-    return $this->get('renderer')->render($response, 'users/show.phtml', $params);
+    $params = [
+        'userData' => $userData,
+        'errors' => $errors
+    ];
+    return $this->get('renderer')->render($response->withStatus(422), 'users/new.phtml', $params);
 });
-//////////////////////////////////////////////////////////////////////////////////////
+
+//5
 $app->get('/users/{id}/edit', function ($request, $response, array $args) {
     $id = $args['id'];
-    $dataBase = json_decode(file_get_contents('./data.json'), true);
-    $user = array_values(array_filter($dataBase, fn($user) => $user['id'] === $id));
+    $users = json_decode($request->getCookieParam('users', json_encode([])), true);
+    $user = getUser($users, $id);                 
     $params = [
-        'user' => $user[0],
-        'errors' => []
+        'user' => $user,
+        'errors' => [],
+        'userData' => $user
     ];
-
     return $this->get('renderer')->render($response, 'users/edit.phtml', $params);
 })->setName('editUser');
 
+//6
 
+$app->patch('/users/{id}', function ($request, $response, array $args) use ($router)  {
+    $id = $args['id'];
+    $userData = $request->getParsedBodyParam('user'); 
+    $users = json_decode($request->getCookieParam('users', json_encode([])), true);
+    $user = getUser($users, $id); 
+    $validator = new Validator();
+    $errors = $validator->validate($userData);
+
+    if (count($errors) === 0) {
+        $user['name'] = $userData['name'];
+        $user['email'] = $userData['email'];
+        $users[$id] = $user;
+        $encodedUsers = json_encode($users);
+        $this->get('flash')->addMessage('success', 'User has been updated');
+        return $response->withHeader('Set-Cookie', "users={$encodedUsers}")->withRedirect($router->urlFor('users'));
+    }
+
+    $params = [
+        'user' => $user,
+        'errors' => $errors,
+        'userData' => $user
+    ];
+
+    $response = $response->withStatus(422);
+    return $this->get('renderer')->render($response, 'users/edit.phtml', $params);
+});
+
+//7
+$app->delete('/users/{id}', function ($request, $response, array $args) use ($router) {
+    $id = $args['id'];
+    $users = json_decode($request->getCookieParam('users', json_encode([])), true);
+    unset($users[$id]);
+    $encodedUsers = json_encode($users);
+    $this->get('flash')->addMessage('success', 'User has been removed');
+    return $response->withHeader('Set-Cookie', "users={$encodedUsers}")->withRedirect($router->urlFor('users'));
+});
 
 $app->run();
-
-
-
-

@@ -1,21 +1,22 @@
+<?php if (count($flash) > 0) : ?>
+    <ul>
+    <?php foreach ($flash as $messages) : ?>
+        <?php foreach ($messages as $message) : ?>
+            <li><?= $message ?></li>
+        <?php endforeach ?>
+    <?php endforeach ?>
+    </ul>
+<?php endif ?>
 
-<div> <?= $flash['success'][0] ?> </div>
+<a href="/users/new">Новый пользователь</a>
 
-<table>
-  <?php foreach ($users as $user): ?>
-    <tr>
-      <td>
-          <?= $user['id'] ?>
-      </td>
-      <td>
-          <a href="/users/<?= htmlspecialchars($user['id']) ?>"><?= $user['name'] ?></a>
-      </td>
-    </tr>
-  <?php endforeach ?>
-</table>
+<?php foreach ($users as $user) : ?>
+  <div>
+      <a href="/users/<?= $user['id'] ?>/edit"><?= htmlspecialchars($user['name']) ?></a>
+      <form action="/users/<?= $user['id'] ?>" method="post">
+      <input type="hidden" name="_METHOD" value="DELETE">
+      <input type="submit" value="Delete">
+    </form>
+  </div>
+<?php endforeach ?>
 
-
-<form action="/users" method="get">
-  <input type="search" name="term" value="<?= htmlspecialchars($term) ?>" />
-  <input type="submit" value="Search" />
-</form>
