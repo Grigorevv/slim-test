@@ -1,1 +1,28 @@
 <a href="/users">Пользователи</a>
+
+<?php if (count($flash) > 0): ?>
+  <ul>
+  <?php foreach ($flash as $messages): ?>
+      <?php foreach ($messages as $message): ?>
+          <li><?= $message ?></li>
+      <?php endforeach ?>
+  <?php endforeach ?>
+  </ul>
+<?php endif ?>
+
+<!-- BEGIN (write your solution here) -->
+<?php if ($currentUser): ?>
+    <div><?= $currentUser['name'] ?></div>
+    <form action="/session" method="post">
+        <input type="hidden" name="_METHOD" value="DELETE">
+        <input type="submit" value="Sign Out">
+    </form>
+<?php else: ?>
+    <form action="/session" method="post">
+        <input type="text" required name="user[name]" value="">
+        <input type="email" required name="user[email]" value="">
+        <input type="submit" value="Sign In">
+    </form>
+<?php endif; ?>
+
+<!-- END -->

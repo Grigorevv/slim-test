@@ -43,7 +43,12 @@ function getUser($users, $id) {
 
 //1
 $app->get('/', function ($request, $response) {
-    return $this->get('renderer')->render($response, 'index.phtml');
+    $flash = $this->get('flash')->getMessages();
+    $params = [
+        'currentUser' => $_SESSION['user'] ?? null,
+        'flash' => $flash
+    ];
+    return $this->get('renderer')->render($response, 'index.phtml', $params);
 });
 
 //2
@@ -138,6 +143,30 @@ $app->delete('/users/{id}', function ($request, $response, array $args) use ($ro
     $encodedUsers = json_encode($users);
     $this->get('flash')->addMessage('success', 'User has been removed');
     return $response->withHeader('Set-Cookie', "users={$encodedUsers}; path=/")->withRedirect($router->urlFor('users'));
+});
+
+//8
+$app->post('/session', function ($request, $response) {
+    $userData = $request->getParsedBodyParam('user');
+    $users = json_decode($request->getCookieParam('users', json_encode([])), true);
+    $user = collect($users)->first(function ($user) use ($userData) {
+        return $user['name'] === $userData['name']
+            && ($userData['email']) === $user['email'];
+    });
+
+    if ($user) {
+        $_SESSION['user'] = $user;
+    } else {
+        $this->get('flash')->addMessage('error', 'Wrong email or name');
+    }
+        return $response->withRedirect('/');
+});
+//9
+
+$app->delete('/session', function ($request, $response) {
+    $_SESSION = [];
+    session_destroy();
+    return $response->withRedirect('/');
 });
 
 $app->run();
