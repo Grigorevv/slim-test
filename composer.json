@@ -21,5 +21,8 @@
         "php-di/php-di": "^6.3",
         "slim/flash": "^0.4.0",
         "tightenco/collect": "^8.76"
+    },
+    "require-dev": {
+        "heroku/heroku-buildpack-php": "^203.0"
     }
 }
